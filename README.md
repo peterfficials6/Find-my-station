@@ -1,4 +1,4 @@
-# findmystation
+# Find-my-station
 
 Crowdsourced GPS mapping of Kenya's 290 IEBC voter registration offices. Citizens drop pins, 7 confirmations verify a location, and anyone can get directions.
 
