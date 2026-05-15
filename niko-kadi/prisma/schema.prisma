@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model County {
+  id                String         @id @default(uuid())
+  name              String         @unique
+  slug              String         @unique
+  constituencyCount Int            @default(0) @map("constituency_count")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  constituencies    Constituency[]
+
+  @@map("counties")
+}
+
+model Constituency {
+  id                 String         @id @default(uuid())
+  countyId           String         @map("county_id")
+  name               String
+  slug               String         @unique
+  officeLocation     String?        @map("office_location")
+  landmark           String?
+  distanceToOffice   String?        @map("distance_to_office")
+  verifiedLat        Float?         @map("verified_lat")
+  verifiedLng        Float?         @map("verified_lng")
+  verificationStatus String         @default("unverified") @map("verification_status")
+  confirmationCount  Int            @default(0) @map("confirmation_count")
+  verifiedAt         DateTime?      @map("verified_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  county        County               @relation(fields: [countyId], references: [id])
+  contributions Contribution[]
+  flags         Flag[]
+  wards         Ward[]
+  centres       RegistrationCentre[]
+
+  @@index([countyId])
+  @@index([verificationStatus])
+  @@map("constituencies")
+}
+
+model ContributorIdentity {
+  id                String         @id @default(uuid())
+  deviceFingerprint String         @unique @map("device_fingerprint")
+  displayName       String         @map("display_name")
+  identityType      String         @map("identity_type")
+  contributionCount Int            @default(0) @map("contribution_count")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  contributions         Contribution[]
+  centreContributions   CentreContribution[]
+
+  @@map("contributor_identities")
+}
+
+model Contribution {
+  id                String   @id @default(uuid())
+  constituencyId    String   @map("constituency_id")
+  contributorId     String   @map("contributor_id")
+  lat               Float
+  lng               Float
+  clusterId         String?  @map("cluster_id")
+  deviceFingerprint String   @map("device_fingerprint")
+  ipHash            String   @map("ip_hash")
+  isConfirmation    Boolean  @default(false) @map("is_confirmation")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  constituency Constituency        @relation(fields: [constituencyId], references: [id])
+  contributor  ContributorIdentity @relation(fields: [contributorId], references: [id])
+
+  @@unique([deviceFingerprint, constituencyId])
+  @@index([constituencyId])
+  @@index([clusterId])
+  @@map("contributions")
+}
+
+model Flag {
+  id                String   @id @default(uuid())
+  constituencyId    String   @map("constituency_id")
+  deviceFingerprint String   @map("device_fingerprint")
+  reason            String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  constituency Constituency @relation(fields: [constituencyId], references: [id])
+
+  @@unique([deviceFingerprint, constituencyId])
+  @@index([constituencyId])
+  @@map("flags")
+}
+
+model Ward {
+  id               String               @id @default(uuid())
+  name             String
+  slug             String               @unique
+  code             Int                  // IEBC CAW code
+  constituencyId   String               @map("constituency_id")
+  createdAt        DateTime             @default(now()) @map("created_at")
+
+  constituency     Constituency         @relation(fields: [constituencyId], references: [id])
+  centres          RegistrationCentre[]
+
+  @@unique([code, constituencyId])
+  @@index([constituencyId])
+  @@map("wards")
+}
+
+model RegistrationCentre {
+  id                 String    @id @default(uuid())
+  name               String
+  slug               String    @unique
+  code               Int       // IEBC centre code within ward
+  wardId             String    @map("ward_id")
+  constituencyId     String    @map("constituency_id")
+  cycleYear          Int       @map("cycle_year") // 2026, 2027...
+  activeFrom         DateTime? @map("active_from")
+  activeUntil        DateTime? @map("active_until")
+  verifiedLat        Float?    @map("verified_lat")
+  verifiedLng        Float?    @map("verified_lng")
+  verificationStatus String    @default("unverified") @map("verification_status")
+  confirmationCount  Int       @default(0) @map("confirmation_count")
+  verifiedAt         DateTime? @map("verified_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  ward               Ward          @relation(fields: [wardId], references: [id])
+  constituency       Constituency  @relation(fields: [constituencyId], references: [id])
+  contributions      CentreContribution[]
+  flags              CentreFlag[]
+
+  @@unique([code, wardId])
+  @@index([wardId])
+  @@index([constituencyId])
+  @@index([verificationStatus])
+  @@index([cycleYear])
+  @@map("registration_centres")
+}
+
+model CentreContribution {
+  id                String   @id @default(uuid())
+  centreId          String   @map("centre_id")
+  contributorId     String   @map("contributor_id")
+  lat               Float
+  lng               Float
+  clusterId         String?  @map("cluster_id")
+  deviceFingerprint String   @map("device_fingerprint")
+  ipHash            String   @map("ip_hash")
+  isConfirmation    Boolean  @default(false) @map("is_confirmation")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  centre      RegistrationCentre  @relation(fields: [centreId], references: [id])
+  contributor ContributorIdentity @relation(fields: [contributorId], references: [id])
+
+  @@unique([deviceFingerprint, centreId])
+  @@index([centreId])
+  @@index([clusterId])
+  @@map("centre_contributions")
+}
+
+model CentreFlag {
+  id                String   @id @default(uuid())
+  centreId          String   @map("centre_id")
+  deviceFingerprint String   @map("device_fingerprint")
+  reason            String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  centre RegistrationCentre @relation(fields: [centreId], references: [id])
+
+  @@unique([deviceFingerprint, centreId])
+  @@index([centreId])
+  @@map("centre_flags")
+}
+
+model AdminUser {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admin_users")
+}
+
+model PageView {
+  id        String   @id @default(uuid())
+  path      String
+  ipHash    String   @map("ip_hash")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([path])
+  @@index([createdAt])
+  @@map("page_views")
+}
+
+model ApiCall {
+  id        String   @id @default(uuid())
+  endpoint  String
+  method    String
+  ipHash    String   @map("ip_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([endpoint])
+  @@index([createdAt])
+  @@map("api_calls")
+}
+
+model SearchLog {
+  id          String   @id @default(uuid())
+  query       String
+  county      String?
+  status      String?
+  resultCount Int      @default(0) @map("result_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("search_logs")
+}
+
+model FeatureSuggestion {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  category    String   @default("other")
+  fileUrl     String?  @map("file_url")
+  contact     String?
+  status      String   @default("new")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("feature_suggestions")
+}
